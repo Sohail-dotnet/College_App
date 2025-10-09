@@ -16,7 +16,7 @@ namespace WebApplication1.Controllers
         private readonly CollegeDBContext _dbcontext;
         private readonly IMapper _mapper;
 
-             
+
         public StudentController(ILogger<StudentController> logger, CollegeDBContext dBContext, IMapper mapper)
         {
             _logger = logger;
@@ -24,11 +24,11 @@ namespace WebApplication1.Controllers
             _mapper = mapper;
         }
 
-        [HttpGet("GetStudentData", Name="GetStudentData")]
-        [ProducesResponseType(StatusCodes.Status200OK)] //OK
+        [HttpGet("GetStudentData", Name = "GetStudentData")]
+        [ProducesResponseType(StatusCodes.Status200OK)] // OK
         [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)] //InternalServerError
-        public async  Task<ActionResult<IEnumerable<StudentDTO>>> GetStudentDataAsync()
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)] // InternalServerError
+        public async Task<ActionResult<IEnumerable<StudentDTO>>> GetStudentDataAsync()
         {
             _logger.LogInformation("GetStudentData called");
             var students = await _dbcontext.Students.ToListAsync();
@@ -54,6 +54,7 @@ namespace WebApplication1.Controllers
                 return BadRequest($"Invalid ID {id} Given");
             }
             var student = await _dbcontext.Students.Where(n => n.Id == id).FirstOrDefaultAsync();
+
             //NotFound - 404
             if (student == null)
             {
@@ -61,6 +62,7 @@ namespace WebApplication1.Controllers
                 return NotFound($"Student With Id {id} Not Found");
             }
             var studentDTO = _mapper.Map<StudentDTO>(student);
+
             //Ok - 200
             return Ok(studentDTO);
 
@@ -119,9 +121,9 @@ namespace WebApplication1.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)] // BadRequest
         [ProducesResponseType(StatusCodes.Status500InternalServerError)] // InternalServerError
         [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable
-        public async Task<ActionResult<StudentDTO>> CreateStudentAsync([FromBody] StudentDTO dto )
+        public async Task<ActionResult<StudentDTO>> CreateStudentAsync([FromBody] StudentDTO dto)
         {
-            if(dto == null)
+            if (dto == null)
             {
                 return BadRequest("Student model cannot be null");
             }
@@ -131,7 +133,7 @@ namespace WebApplication1.Controllers
             await _dbcontext.Students.AddAsync(newStudent);
             dto.Id = newStudent.Id; // Update the model with the new ID
             await _dbcontext.SaveChangesAsync();
-            return CreatedAtRoute("GetStudentDataById", new { id=dto.Id  }, dto); // Return the created student with a 201 status code
+            return CreatedAtRoute("GetStudentDataById", new { id = dto.Id }, dto); // Return the created student with a 201 status code
 
         }
 
@@ -143,11 +145,12 @@ namespace WebApplication1.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)] // InternalServerError
         public async Task<ActionResult<StudentDTO>> UpdateStudentAsync([FromBody] StudentDTO dto)
         {
-            if(dto == null || dto.Id <= 0)
+            if (dto == null || dto.Id <= 0)
             {
                 return BadRequest("Student model cannot be null");
             }
             var existingStudent = await _dbcontext.Students.AsNoTracking().Where(s => s.Id == dto.Id).FirstOrDefaultAsync();
+
             // Check if the student exists
             if (existingStudent == null)
             {
@@ -156,10 +159,12 @@ namespace WebApplication1.Controllers
 
             var newRecord = _mapper.Map<Student>(dto);
             _dbcontext.Students.Update(newRecord);
+
             //existingStudent.Name = model.Name;  
             //existingStudent.Email = model.Email;
             //existingStudent.Address = model.Address;
             //existingStudent.PhoneNumber = model.PhoneNumber;
+             
             await _dbcontext.SaveChangesAsync();
 
             return NoContent(); // Return 204 No Content on successful update
@@ -186,6 +191,7 @@ namespace WebApplication1.Controllers
 
             // Create a copy to apply the patch and validate before persisting
             var studentDTO = _mapper.Map<StudentDTO>(existingStudent);
+            
             // Apply patch into the copy using the Controller's ModelState
             patchDocument.ApplyTo(studentDTO, ModelState);
 
