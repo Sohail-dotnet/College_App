@@ -2,6 +2,7 @@
 using College_App.Data.Repository;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
 using Student = WebApplication1.Data.Student;
@@ -14,10 +15,10 @@ namespace WebApplication1.Controllers
     {
         private readonly ILogger<StudentController> _logger;
         private readonly IMapper _mapper;
-        private readonly IStudentRepository _studentRepository;
+        private readonly ICollegeRepository<Student> _studentRepository;
 
 
-        public StudentController(ILogger<StudentController> logger, CollegeDBContext dBContext, IMapper mapper, IStudentRepository studentRepository)
+        public StudentController(ILogger<StudentController> logger, CollegeDBContext dBContext, IMapper mapper, ICollegeRepository<Student> studentRepository)
         {
             _logger = logger;
             _mapper = mapper;
@@ -53,7 +54,7 @@ namespace WebApplication1.Controllers
                 _logger.LogWarning($"Invalid ID {id} Given");
                 return BadRequest($"Invalid ID {id} Given");
             }
-            var student = await _studentRepository.GetByIdAsync(id);
+            var student = await _studentRepository.GetByIdAsync(student => student.Id == id);
             //NotFound - 404
             if (student == null)
             {
@@ -75,7 +76,7 @@ namespace WebApplication1.Controllers
         [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable
         public async Task<ActionResult<StudentDTO>> GetStudentDataByNameAsync(string name)
         {
-            var student = await _studentRepository.GetByNameAsync(name);
+            var student = await _studentRepository.GetByNameAsync(student=> student.Name.ToLower().Contains(name.ToLower())); // Deligate or anonymous Method passing to GetByNameAsync
 
             //NotFound - 404    
             if (student == null)
@@ -108,8 +109,8 @@ namespace WebApplication1.Controllers
             // int newId = _dbcontext.Students.Max(s => s.Id) + 1; // Generate new ID
             Student newStudent = _mapper.Map<Student>(dto);
 
-            var id = await _studentRepository.CreateAsync(newStudent);
-            dto.Id = id; // Update the model with the new ID
+            var StudentAfterCreation = await _studentRepository.CreateAsync(newStudent);
+            dto.Id = StudentAfterCreation.Id; // Update the model with the new ID
             return CreatedAtRoute("GetStudentDataById", new { id = dto.Id }, dto); // Return the created student with a 201 status code
 
         }
@@ -127,7 +128,7 @@ namespace WebApplication1.Controllers
                 return BadRequest("Student model cannot be null");
             }
 
-            var existingStudent = await _studentRepository.GetByIdAsync(dto.Id, true);
+            var existingStudent = await _studentRepository.GetByIdAsync(student => student.Id==dto.Id, true);
 
             // Check if the student exists
             if (existingStudent == null)
@@ -161,7 +162,7 @@ namespace WebApplication1.Controllers
                 return BadRequest("Patch document cannot be null and id must be greater than zero");
             }
 
-            var existingStudent = await _studentRepository.GetByIdAsync(id, true);
+            var existingStudent = await _studentRepository.GetByIdAsync(student => student.Id == id, true);
 
             if (existingStudent == null)
             {
@@ -201,7 +202,7 @@ namespace WebApplication1.Controllers
                 return BadRequest("Invalid ID");
             }
 
-            var student = await _studentRepository.GetByIdAsync(id, true);
+            var student = await _studentRepository.GetByIdAsync(student => student.Id == id, true);
 
             //NotFound - 404
             if (student == null)

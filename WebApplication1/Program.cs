@@ -55,6 +55,8 @@ namespace WebApplication1
 
             builder.Services.AddTransient<IStudentRepository, StudentRepository>();
 
+            builder.Services.AddScoped(typeof(ICollegeRepository<>), typeof(CollegeRepository<>));
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

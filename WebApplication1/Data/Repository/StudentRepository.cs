@@ -6,7 +6,7 @@ namespace College_App.Data.Repository
     public class StudentRepository : IStudentRepository
     {
         private readonly CollegeDBContext _dbcontext;
-        public StudentRepository(CollegeDBContext dBContext){ _dbcontext = dBContext;}
+        public StudentRepository(CollegeDBContext dBContext) { _dbcontext = dBContext; }
 
 
         public async Task<List<Student>> GetAllAsync()
@@ -20,10 +20,11 @@ namespace College_App.Data.Repository
             {
                 return await _dbcontext.Students.AsNoTracking().Where(student => student.Id == id).FirstOrDefaultAsync();
             }
-            else 
+            else
                 return await _dbcontext.Students.Where(student => student.Id == id).FirstOrDefaultAsync();
 
         }
+
         public async Task<Student> GetByNameAsync(string name)
         {
             return await _dbcontext.Students.Where(student => student.Name.Contains(name)).FirstOrDefaultAsync();
