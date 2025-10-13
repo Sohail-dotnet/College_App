@@ -1,4 +1,4 @@
-using AutoMapper;
+using College_App.Data.Repository;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Configuration;
 using WebApplication1.Data;
@@ -52,6 +52,8 @@ namespace WebApplication1
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddSingleton<IMyLogger, LogToDB>();
+
+            builder.Services.AddTransient<IStudentRepository, StudentRepository>();
 
             var app = builder.Build();
 

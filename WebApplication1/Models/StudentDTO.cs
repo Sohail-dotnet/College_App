@@ -5,7 +5,7 @@ namespace WebApplication1.Models
     {
         public int Id { get; set; }
 
-        public string StudentName { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
 
         public string Email { get; set; } = string.Empty;
 

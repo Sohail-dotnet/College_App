@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.JsonPatch;
+﻿using AutoMapper;
+using College_App.Data.Repository;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
-using Student = WebApplication1.Data.Student;
 using WebApplication1.Models;
+using Student = WebApplication1.Data.Student;
 
 namespace WebApplication1.Controllers
 {
@@ -13,15 +13,15 @@ namespace WebApplication1.Controllers
     public class StudentController : ControllerBase
     {
         private readonly ILogger<StudentController> _logger;
-        private readonly CollegeDBContext _dbcontext;
         private readonly IMapper _mapper;
+        private readonly IStudentRepository _studentRepository;
 
 
-        public StudentController(ILogger<StudentController> logger, CollegeDBContext dBContext, IMapper mapper)
+        public StudentController(ILogger<StudentController> logger, CollegeDBContext dBContext, IMapper mapper, IStudentRepository studentRepository)
         {
             _logger = logger;
-            _dbcontext = dBContext;
             _mapper = mapper;
+            _studentRepository = studentRepository;
         }
 
         [HttpGet("GetStudentData", Name = "GetStudentData")]
@@ -31,7 +31,7 @@ namespace WebApplication1.Controllers
         public async Task<ActionResult<IEnumerable<StudentDTO>>> GetStudentDataAsync()
         {
             _logger.LogInformation("GetStudentData called");
-            var students = await _dbcontext.Students.ToListAsync();
+            var students = await _studentRepository.GetAllAsync();
 
             var studentDTOData = _mapper.Map<List<StudentDTO>>(students);
 
@@ -53,8 +53,7 @@ namespace WebApplication1.Controllers
                 _logger.LogWarning($"Invalid ID {id} Given");
                 return BadRequest($"Invalid ID {id} Given");
             }
-            var student = await _dbcontext.Students.Where(n => n.Id == id).FirstOrDefaultAsync();
-
+            var student = await _studentRepository.GetByIdAsync(id);
             //NotFound - 404
             if (student == null)
             {
@@ -76,7 +75,7 @@ namespace WebApplication1.Controllers
         [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable
         public async Task<ActionResult<StudentDTO>> GetStudentDataByNameAsync(string name)
         {
-            var student = await _dbcontext.Students.Where(n => n.Name.Equals(name)).FirstOrDefaultAsync();
+            var student = await _studentRepository.GetByNameAsync(name);
 
             //NotFound - 404    
             if (student == null)
@@ -94,45 +93,23 @@ namespace WebApplication1.Controllers
         }
 
 
-        [HttpDelete("DeleteStudentDataById/{id:int}")]
-        [ProducesResponseType(StatusCodes.Status200OK)] // OK
-        [ProducesResponseType(StatusCodes.Status400BadRequest)] // BadRequest
-        [ProducesResponseType(StatusCodes.Status404NotFound)] // NotFound
-        [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable
-        public async Task<ActionResult<bool>> DeleteStudentDataByIdAsync(int id)
-        {
-            var student = await _dbcontext.Students.Where(n => n.Id == id).FirstOrDefaultAsync();
-
-            //NotFound - 404
-            if (student == null)
-            {
-                return NotFound("Student Not Found");
-            }
-
-            _dbcontext.Students.Remove(student);
-            _dbcontext.SaveChanges();
-            return true;
-        }
-
-
         [HttpPost]
         [Route("CreateStudent")]
         [ProducesResponseType(StatusCodes.Status201Created)] // Created
         [ProducesResponseType(StatusCodes.Status400BadRequest)] // BadRequest
         [ProducesResponseType(StatusCodes.Status500InternalServerError)] // InternalServerError
-        [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable
+        [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable 
         public async Task<ActionResult<StudentDTO>> CreateStudentAsync([FromBody] StudentDTO dto)
         {
             if (dto == null)
             {
                 return BadRequest("Student model cannot be null");
             }
-            int newId = _dbcontext.Students.Max(s => s.Id) + 1; // Generate new ID
+            // int newId = _dbcontext.Students.Max(s => s.Id) + 1; // Generate new ID
             Student newStudent = _mapper.Map<Student>(dto);
 
-            await _dbcontext.Students.AddAsync(newStudent);
-            dto.Id = newStudent.Id; // Update the model with the new ID
-            await _dbcontext.SaveChangesAsync();
+            var id = await _studentRepository.CreateAsync(newStudent);
+            dto.Id = id; // Update the model with the new ID
             return CreatedAtRoute("GetStudentDataById", new { id = dto.Id }, dto); // Return the created student with a 201 status code
 
         }
@@ -149,7 +126,8 @@ namespace WebApplication1.Controllers
             {
                 return BadRequest("Student model cannot be null");
             }
-            var existingStudent = await _dbcontext.Students.AsNoTracking().Where(s => s.Id == dto.Id).FirstOrDefaultAsync();
+
+            var existingStudent = await _studentRepository.GetByIdAsync(dto.Id, true);
 
             // Check if the student exists
             if (existingStudent == null)
@@ -158,14 +136,14 @@ namespace WebApplication1.Controllers
             }
 
             var newRecord = _mapper.Map<Student>(dto);
-            _dbcontext.Students.Update(newRecord);
+
+            await _studentRepository.UpdateAsync(newRecord);
 
             //existingStudent.Name = model.Name;  
             //existingStudent.Email = model.Email;
             //existingStudent.Address = model.Address;
             //existingStudent.PhoneNumber = model.PhoneNumber;
-             
-            await _dbcontext.SaveChangesAsync();
+
 
             return NoContent(); // Return 204 No Content on successful update
 
@@ -183,7 +161,8 @@ namespace WebApplication1.Controllers
                 return BadRequest("Patch document cannot be null and id must be greater than zero");
             }
 
-            var existingStudent = await _dbcontext.Students.Where(s => s.Id == id).FirstOrDefaultAsync();
+            var existingStudent = await _studentRepository.GetByIdAsync(id, true);
+
             if (existingStudent == null)
             {
                 return NotFound("Student Not Found");
@@ -191,7 +170,7 @@ namespace WebApplication1.Controllers
 
             // Create a copy to apply the patch and validate before persisting
             var studentDTO = _mapper.Map<StudentDTO>(existingStudent);
-            
+
             // Apply patch into the copy using the Controller's ModelState
             patchDocument.ApplyTo(studentDTO, ModelState);
 
@@ -203,10 +182,38 @@ namespace WebApplication1.Controllers
 
             // Copy patched fields back to the tracked entity and save
             existingStudent = _mapper.Map<Student>(studentDTO);
-            _dbcontext.SaveChanges();
+
+            await _studentRepository.UpdateAsync(existingStudent);
 
             return NoContent();
         }
+
+
+        [HttpDelete("DeleteStudentDataById/{id:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)] // OK
+        [ProducesResponseType(StatusCodes.Status400BadRequest)] // BadRequest
+        [ProducesResponseType(StatusCodes.Status404NotFound)] // NotFound
+        [ProducesResponseType(StatusCodes.Status406NotAcceptable)] // NotAcceptable
+        public async Task<ActionResult<bool>> DeleteStudentDataByIdAsync(int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest("Invalid ID");
+            }
+
+            var student = await _studentRepository.GetByIdAsync(id, true);
+
+            //NotFound - 404
+            if (student == null)
+            {
+                return NotFound("Student Not Found");
+            }
+
+            await _studentRepository.DeleteAsync(student);
+
+            return true;
+        }
+
 
     }
 }

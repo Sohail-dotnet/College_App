@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using WebApplication1.MyLogging;
 
 namespace WebApplication1.Controllers
 {
